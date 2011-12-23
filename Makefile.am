@@ -50,6 +50,15 @@ if SYSTEMD
 AM_CPPFLAGS += $(SYSTEMD_CFLAGS) -DSYSTEMD
 
 rpcbind_LDADD += $(SYSTEMD_LIBS)
+
+systemd/rpcbind.service: systemd/rpcbind.service.in Makefile
+	sed -e 's,@bindir\@,$(bindir),g' \
+		< $< > $@ || rm $@
+
+systemdsystemunit_DATA = \
+	systemd/rpcbind.service \
+	systemd/rpcbind.socket
+
 endif
 
 rpcinfo_SOURCES =       src/rpcinfo.c
