@@ -87,6 +87,7 @@ static inline void __nss_configure_lookup(const char *db, const char *s) {}
 int debugging = 0;	/* Tell me what's going on */
 int doabort = 0;	/* When debugging, do an abort on errors */
 int dofork = 1;		/* fork? */
+int sock_needs_unlink = 1;	/* we created rpcbind.sock */
 
 rpcblist_ptr list_rbl;	/* A list of version 3/4 rpcbind services */
 
@@ -430,6 +431,14 @@ init_transport(struct netconfig *nconf)
                                nconf->nc_netid);
 			goto error;
 		}
+
+		/*
+		 * We were passed the open UNIX socket
+		 * and shouldn't remove it.
+		 */
+		if (sa.sa.sa_family == AF_UNIX &&
+		    strcmp(sa.un.sun_path, _PATH_RPCBINDSOCK))
+			sock_needs_unlink = 0;
 	}
 
 	/*
@@ -846,7 +855,8 @@ static void
 terminate(int dummy /*__unused*/)
 {
 	close(rpcbindlockfd);
-	unlink(_PATH_RPCBINDSOCK);
+	if (sock_needs_unlink)
+		unlink(_PATH_RPCBINDSOCK);
 	unlink(RPCBINDDLOCK);
 #ifdef WARMSTART
 	write_warmstart();	/* Dump yourself */
