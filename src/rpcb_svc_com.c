@@ -50,7 +50,6 @@
 #include <rpc/svc_dg.h>
 #include <netconfig.h>
 #include <errno.h>
-#include <syslog.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <time.h>
@@ -521,7 +520,7 @@ create_rmtcall_fd(struct netconfig *nconf)
 	}
 	rmt = malloc(sizeof (struct rmtcallfd_list));
 	if (rmt == NULL) {
-		syslog(LOG_ERR, "create_rmtcall_fd: no memory!");
+		rpcbind_syslog(LOG_ERR, "create_rmtcall_fd: no memory!");
 		return (-1);
 	}
 	rmt->xprt = xprt;
@@ -1417,7 +1416,7 @@ add_pmaplist(RPCB *arg)
 	 */
 	pml = malloc(sizeof (struct pmaplist));
 	if (pml == NULL) {
-		(void) syslog(LOG_ERR, "rpcbind: no memory!\n");
+		(void) rpcbind_syslog(LOG_ERR, "rpcbind: no memory!\n");
 		return (1);
 	}
 	pml->pml_map = pmap;

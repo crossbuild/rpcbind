@@ -47,6 +47,14 @@
 #endif
 #include <rpc/rpcb_prot.h>
 
+#include <syslog.h>
+#ifdef SYSTEMD
+#include <systemd/sd-journal.h>
+#define rpcbind_syslog sd_journal_print
+#else
+#define rpcbind_syslog syslog
+#endif
+
 /*
  * Stuff for the rmtcall service
  */

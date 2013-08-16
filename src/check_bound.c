@@ -52,7 +52,6 @@ static	char sccsid[] = "@(#)check_bound.c 1.11 89/04/21 Copyr 1989 Sun Micro";
 #include <rpc/rpc.h>
 #include <stdio.h>
 #include <netconfig.h>
-#include <syslog.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -119,7 +118,7 @@ add_bndlist(struct netconfig *nconf, struct netbuf *baddr /*__unused*/)
 	fdl = malloc(sizeof (struct fdlist));
 	if (fdl == NULL) {
 		freenetconfigent(newnconf);
-		syslog(LOG_ERR, "no memory!");
+		rpcbind_syslog(LOG_ERR, "no memory!");
 		return (-1);
 	}
 	fdl->nconf = newnconf;
@@ -179,7 +178,7 @@ mergeaddr(SVCXPRT *xprt, char *netid, char *uaddr, char *saddr)
 	} else {
 		c_uaddr = taddr2uaddr(fdl->nconf, svc_getrpccaller(xprt));
 		if (c_uaddr == NULL) {
-			syslog(LOG_ERR, "taddr2uaddr failed for %s",
+			rpcbind_syslog(LOG_ERR, "taddr2uaddr failed for %s",
 				fdl->nconf->nc_netid);
 			return (NULL);
 		}

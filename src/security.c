@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <syslog.h>
 #include <netdb.h>
 
 /*
@@ -218,7 +217,7 @@ is_localroot(struct netbuf *nbuf)
 }
 
 
-/* logit - report events of interest via the syslog daemon */
+/* logit - report events of interest via the rpcbind_syslog daemon */
 void
 logit(int severity, struct sockaddr *addr, rpcproc_t procnum, rpcprog_t prognum,
       const char *text){
@@ -248,7 +247,7 @@ logit(int severity, struct sockaddr *addr, rpcproc_t procnum, rpcprog_t prognum,
 
 	/*
 	 * Fork off a process or the portmap daemon might hang while
-	 * getrpcbynumber() or syslog() does its thing.
+	 * getrpcbynumber() or rpcbind_syslog() does its thing.
 	 */
 
 	if (fork() == 0) {
@@ -273,7 +272,7 @@ logit(int severity, struct sockaddr *addr, rpcproc_t procnum, rpcprog_t prognum,
 		} else
 			procname = procmap[procnum];
 
-		/* Write syslog record. */
+		/* Write rpcbind_syslog record. */
 
 		if (addr->sa_family == AF_LOCAL)
 			strcpy(fromname, "local");
@@ -291,7 +290,7 @@ logit(int severity, struct sockaddr *addr, rpcproc_t procnum, rpcprog_t prognum,
 		  }
 		  getnameinfo(addr,size , fromname, sizeof fromname, NULL, 0, NI_NUMERICHOST);
 		}
-		syslog(severity, "connect from %s to %s(%s)%s",
+		rpcbind_syslog(severity, "connect from %s to %s(%s)%s",
 			fromname, procname, progname, text);
 		_exit(0);
 	}

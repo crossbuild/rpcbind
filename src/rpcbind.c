@@ -67,7 +67,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <grp.h>
-#include <syslog.h>
 #include <err.h>
 #include <pwd.h>
 #include <string.h>
@@ -184,7 +183,7 @@ main(int argc, char *argv[])
 
 	nc_handle = setnetconfig(); 	/* open netconfig file */
 	if (nc_handle == NULL) {
-		syslog(LOG_ERR, "could not read /etc/netconfig");
+		rpcbind_syslog(LOG_ERR, "could not read /etc/netconfig");
 		exit(1);
 	}
 
@@ -192,7 +191,7 @@ main(int argc, char *argv[])
 	if (nconf == NULL)
 		nconf = getnetconfigent("unix");
 	if (nconf == NULL) {
-		syslog(LOG_ERR, "%s: can't find local transport\n", argv[0]);
+		rpcbind_syslog(LOG_ERR, "%s: can't find local transport\n", argv[0]);
 		exit(1);
 	}
 	xlog_open("rpcbind");
@@ -260,19 +259,19 @@ main(int argc, char *argv[])
 		__nss_configure_lookup("passwd", nss_modules);
 
 		if((p = getpwnam(id)) == NULL) {
-			syslog(LOG_ERR, "cannot get uid of '%s': %m", id);
+			rpcbind_syslog(LOG_ERR, "cannot get uid of '%s': %m", id);
 			exit(1);
 		}
                 if (setgid(p->pw_gid) == -1) {
-                        syslog(LOG_ERR, "setgid to '%s' (%d) failed: %m", id, p->pw_gid);
+                        rpcbind_syslog(LOG_ERR, "setgid to '%s' (%d) failed: %m", id, p->pw_gid);
                         exit(1);
                 }
 		if (setgroups(0, NULL) == -1) {
-			syslog(LOG_ERR, "dropping supplemental groups failed: %m");
+			rpcbind_syslog(LOG_ERR, "dropping supplemental groups failed: %m");
 			exit(1);
 		}
 		if (setuid(p->pw_uid) == -1) {
-			syslog(LOG_ERR, "setuid to '%s' (%d) failed: %m", id, p->pw_uid);
+			rpcbind_syslog(LOG_ERR, "setuid to '%s' (%d) failed: %m", id, p->pw_uid);
 			exit(1);
 		}
 	}
@@ -293,7 +292,7 @@ main(int argc, char *argv[])
 	sd_notify(0, "READY=1");
 #endif
 	my_svc_run();
-	syslog(LOG_ERR, "svc_run returned unexpectedly");
+	rpcbind_syslog(LOG_ERR, "svc_run returned unexpectedly");
 	rpcbind_abort();
 	/* NOTREACHED */
 
@@ -313,15 +312,15 @@ handle_ipv6_socket(int fd)
 	socklen_t len = sizeof(opt);
 
 	if (getsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &opt, &len)) {
-		syslog(LOG_ERR, "failed to get ipv6 socket opts: %m");
+		rpcbind_syslog(LOG_ERR, "failed to get ipv6 socket opts: %m");
 		return -1;
 	}
 
 	if (opt) /* socket is already in V6ONLY mode */
 		return 0;
 
-	syslog(LOG_ERR, "systemd has passed an IPv4/IPv6 dual-mode socket.");
-	syslog(LOG_ERR, "Please fix your systemd config by specifying IPv4 and IPv6 sockets separately and using BindIPv6Only=ipv6-only.");
+	rpcbind_syslog(LOG_ERR, "systemd has passed an IPv4/IPv6 dual-mode socket.");
+	rpcbind_syslog(LOG_ERR, "Please fix your systemd config by specifying IPv4 and IPv6 sockets separately and using BindIPv6Only=ipv6-only.");
 	return -1;
 }
 
@@ -368,7 +367,7 @@ init_transport(struct netconfig *nconf)
 	}
 #endif
 	if (!__rpc_nconf2sockinfo(nconf, &si)) {
-		syslog(LOG_ERR, "cannot get information for %s",
+		rpcbind_syslog(LOG_ERR, "cannot get information for %s",
 		    nconf->nc_netid);
 		return (1);
 	}
@@ -376,7 +375,7 @@ init_transport(struct netconfig *nconf)
 #ifdef SYSTEMD
 	n = sd_listen_fds(0);
 	if (n < 0) {
-		syslog(LOG_ERR, "failed to acquire systemd sockets: %s", strerror(-n));
+		rpcbind_syslog(LOG_ERR, "failed to acquire systemd sockets: %s", strerror(-n));
 		return 1;
 	}
 
@@ -395,7 +394,7 @@ init_transport(struct netconfig *nconf)
 		socklen_t addrlen = sizeof(sa);
 
 		if (!__rpc_fd2sockinfo(fd, &si_other)) {
-			syslog(LOG_ERR, "cannot get information for fd %i", fd);
+			rpcbind_syslog(LOG_ERR, "cannot get information for fd %i", fd);
 			return 1;
 		}
 
@@ -405,7 +404,7 @@ init_transport(struct netconfig *nconf)
 			continue;
 
 		if (getsockname(fd, &sa.sa, &addrlen) < 0) {
-			syslog(LOG_ERR, "failed to query socket name: %s",
+			rpcbind_syslog(LOG_ERR, "failed to query socket name: %s",
                                strerror(errno));
 			goto error;
 		}
@@ -417,7 +416,7 @@ init_transport(struct netconfig *nconf)
 		taddr.addr.maxlen = taddr.addr.len = addrlen;
 		taddr.addr.buf = malloc(addrlen);
 		if (taddr.addr.buf == NULL) {
-			syslog(LOG_ERR,
+			rpcbind_syslog(LOG_ERR,
                                "cannot allocate memory for %s address",
                                nconf->nc_netid);
 			goto error;
@@ -427,7 +426,7 @@ init_transport(struct netconfig *nconf)
 		my_xprt = (SVCXPRT *)svc_tli_create(fd, nconf, &taddr,
                           RPC_MAXDATASIZE, RPC_MAXDATASIZE);
 		if (my_xprt == (SVCXPRT *)NULL) {
-			syslog(LOG_ERR, "%s: could not create service",
+			rpcbind_syslog(LOG_ERR, "%s: could not create service",
                                nconf->nc_netid);
 			goto error;
 		}
@@ -495,7 +494,7 @@ init_transport(struct netconfig *nconf)
 			 * XXX - using RPC library internal functions.
 			 */
 			if ((fd = __rpc_nconf2fd(nconf)) < 0) {
-				syslog(LOG_ERR, "cannot create socket for %s",
+				rpcbind_syslog(LOG_ERR, "cannot create socket for %s",
 				    nconf->nc_netid);
 				return (1);
 			}
@@ -542,7 +541,7 @@ init_transport(struct netconfig *nconf)
 			    servname, &hints, &res)) != 0) {
 			  if ((aicode = getaddrinfo(hosts[nhostsbak],
 						    "portmapper", &hints, &res)) != 0) {
-				syslog(LOG_ERR,
+				rpcbind_syslog(LOG_ERR,
 				    "cannot get local address for %s: %s",
 				    nconf->nc_netid, gai_strerror(aicode));
 				continue;
@@ -552,7 +551,7 @@ init_transport(struct netconfig *nconf)
 			sa = (struct sockaddr *)res->ai_addr;
 			oldmask = umask(S_IXUSR|S_IXGRP|S_IXOTH);
                         if (bind(fd, sa, addrlen) != 0) {
-				syslog(LOG_ERR, "cannot bind %s on %s: %m",
+				rpcbind_syslog(LOG_ERR, "cannot bind %s on %s: %m",
 					(hosts[nhostsbak] == NULL) ? "*" :
 					hosts[nhostsbak], nconf->nc_netid);
 				if (res != NULL)
@@ -566,7 +565,7 @@ init_transport(struct netconfig *nconf)
 			taddr.addr.maxlen = taddr.addr.len = addrlen;
 			taddr.addr.buf = malloc(addrlen);
 			if (taddr.addr.buf == NULL) {
-				syslog(LOG_ERR,
+				rpcbind_syslog(LOG_ERR,
 				    "cannot allocate memory for %s address",
 				    nconf->nc_netid);
 				if (res != NULL)
@@ -603,7 +602,7 @@ init_transport(struct netconfig *nconf)
 			my_xprt = (SVCXPRT *)svc_tli_create(fd, nconf, &taddr, 
                                 RPC_MAXDATASIZE, RPC_MAXDATASIZE);
 			if (my_xprt == (SVCXPRT *)NULL) {
-				syslog(LOG_ERR, "%s: could not create service", 
+				rpcbind_syslog(LOG_ERR, "%s: could not create service",
                                         nconf->nc_netid);
 				goto error;
 			}
@@ -612,7 +611,7 @@ init_transport(struct netconfig *nconf)
 			return 1;
 	} else {	/* NC_TPI_COTS */
 		if ((fd = __rpc_nconf2fd(nconf)) < 0) {
-			syslog(LOG_ERR, "cannot create socket for %s",
+			rpcbind_syslog(LOG_ERR, "cannot create socket for %s",
 			    nconf->nc_netid);
 			return (1);
 		}
@@ -622,7 +621,7 @@ init_transport(struct netconfig *nconf)
 			if ((aicode = getaddrinfo(NULL, servname, &hints, &res))!= 0) {
 			  if ((aicode = getaddrinfo(NULL, "portmapper", &hints, &res))!= 0) {
 			  printf("cannot get local address for %s: %s",  nconf->nc_netid, gai_strerror(aicode));
-			  syslog(LOG_ERR,
+			  rpcbind_syslog(LOG_ERR,
 				    "cannot get local address for %s: %s",
 				    nconf->nc_netid, gai_strerror(aicode));
 				return 1;
@@ -635,14 +634,14 @@ init_transport(struct netconfig *nconf)
 		__rpc_fd2sockinfo(fd, &si);
 		if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on,
 				sizeof(on)) != 0) {
-			syslog(LOG_ERR, "cannot set SO_REUSEADDR on %s",
+			rpcbind_syslog(LOG_ERR, "cannot set SO_REUSEADDR on %s",
 				nconf->nc_netid);
 			if (res != NULL)
 				freeaddrinfo(res);
 			return 1;
 		}
 		if (bind(fd, sa, addrlen) < 0) {
-			syslog(LOG_ERR, "cannot bind %s: %m", nconf->nc_netid);
+			rpcbind_syslog(LOG_ERR, "cannot bind %s: %m", nconf->nc_netid);
 			if (res != NULL)
 				freeaddrinfo(res);
 			return 1;
@@ -653,7 +652,7 @@ init_transport(struct netconfig *nconf)
 		taddr.addr.len = taddr.addr.maxlen = addrlen;
 		taddr.addr.buf = malloc(addrlen);
 		if (taddr.addr.buf == NULL) {
-			syslog(LOG_ERR, "cannot allocate memory for %s address",
+			rpcbind_syslog(LOG_ERR, "cannot allocate memory for %s address",
 			    nconf->nc_netid);
 			if (res != NULL)
 				freeaddrinfo(res);
@@ -688,7 +687,7 @@ init_transport(struct netconfig *nconf)
 
 		my_xprt = (SVCXPRT *)svc_tli_create(fd, nconf, &taddr, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
 		if (my_xprt == (SVCXPRT *)NULL) {
-			syslog(LOG_ERR, "%s: could not create service",
+			rpcbind_syslog(LOG_ERR, "%s: could not create service",
 					nconf->nc_netid);
 			goto error;
 		}
@@ -705,7 +704,7 @@ got_socket:
 
 		pml = malloc(sizeof (struct pmaplist));
 		if (pml == NULL) {
-			syslog(LOG_ERR, "no memory!");
+			rpcbind_syslog(LOG_ERR, "no memory!");
 			exit(1);
 		}
 		pml->pml_map.pm_prog = PMAPPROG;
@@ -727,7 +726,7 @@ got_socket:
 		/* Add version 3 information */
 		pml = malloc(sizeof (struct pmaplist));
 		if (pml == NULL) {
-			syslog(LOG_ERR, "no memory!");
+			rpcbind_syslog(LOG_ERR, "no memory!");
 			exit(1);
 		}
 		pml->pml_map = list_pml->pml_map;
@@ -738,7 +737,7 @@ got_socket:
 		/* Add version 4 information */
 		pml = malloc (sizeof (struct pmaplist));
 		if (pml == NULL) {
-			syslog(LOG_ERR, "no memory!");
+			rpcbind_syslog(LOG_ERR, "no memory!");
 			exit(1);
 		}
 		pml->pml_map = list_pml->pml_map;
@@ -757,7 +756,7 @@ got_socket:
 	 * non-root users. */
 	if (si.si_af == AF_INET || si.si_af == AF_LOCAL) {
 		if (!svc_register(my_xprt, PMAPPROG, PMAPVERS, pmap_service, 0)) {
-			syslog(LOG_ERR, "could not register on %s",
+			rpcbind_syslog(LOG_ERR, "could not register on %s",
 					nconf->nc_netid);
 			goto error;
 		}
@@ -766,7 +765,7 @@ got_socket:
 
 	/* version 3 registration */
 	if (!svc_reg(my_xprt, RPCBPROG, RPCBVERS, rpcb_service_3, NULL)) {
-		syslog(LOG_ERR, "could not register %s version 3",
+		rpcbind_syslog(LOG_ERR, "could not register %s version 3",
 				nconf->nc_netid);
 		goto error;
 	}
@@ -774,7 +773,7 @@ got_socket:
 
 	/* version 4 registration */
 	if (!svc_reg(my_xprt, RPCBPROG, RPCBVERS4, rpcb_service_4, NULL)) {
-		syslog(LOG_ERR, "could not register %s version 4",
+		rpcbind_syslog(LOG_ERR, "could not register %s version 4",
 				nconf->nc_netid);
 		goto error;
 	}
@@ -829,7 +828,7 @@ rbllist_add(rpcprog_t prog, rpcvers_t vers, struct netconfig *nconf,
 
 	rbl = malloc(sizeof (rpcblist));
 	if (rbl == NULL) {
-		syslog(LOG_ERR, "no memory!");
+		rpcbind_syslog(LOG_ERR, "no memory!");
 		exit(1);
 	}
 #ifdef RPCBIND_DEBUG	

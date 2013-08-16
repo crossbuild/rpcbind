@@ -48,6 +48,8 @@ AC_ARG_WITH([systemdsystemunitdir],
     AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
      PKG_CHECK_MODULES([SYSTEMD], [libsystemd], [],
 	   [PKG_CHECK_MODULES([SYSTEMD], [libsystemd-daemon], [],
+	   AC_MSG_ERROR([libsystemd support requested but found]))
+	   PKG_CHECK_MODULES([SYSTEMD_JOURNAL], [libsystemd-journal], [],
 	   AC_MSG_ERROR([libsystemd support requested but found]))])
   fi
 AM_CONDITIONAL(SYSTEMD, [test -n "$with_systemdsystemunitdir" -a "x$with_systemdsystemunitdir" != xno ])
